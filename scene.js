@@ -572,7 +572,7 @@ class Scene {
 
   // particle field — additive bright points
   buildParticles() {
-    const count = 1800;
+    const count = 600;
     const positions = new Float32Array(count * 3);
     const speeds = new Float32Array(count);
     const phases = new Float32Array(count);
