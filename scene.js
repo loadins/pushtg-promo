@@ -10,6 +10,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { SVGLoader } from 'three/addons/loaders/SVGLoader.js';
 
 console.log('[PUSHTG·3D] modules loaded · THREE r' + THREE.REVISION);
 
@@ -175,6 +176,10 @@ class Scene {
 
       this.canvas.classList.add('is-ready');
       console.log('[PUSHTG·3D] scene initialised · objects:', this.scene.children.length);
+
+      // kick off async load of real Telegram brand SVGs — fragments
+      // start as placeholder shapes and get swapped in once SVGs arrive
+      this.loadTelegramIcons();
 
       // always render once for static / RM
       this.renderStatic();
@@ -432,6 +437,137 @@ class Scene {
       this.fragments.add(mesh);
     }
     this.scene.add(this.fragments);
+  }
+
+  // ── load REAL brand SVGs from iconify CDN (CORS-enabled) and swap geometry ──
+  // sources: iconify.design (huge open icon DB), simpleicons via iconify alias.
+  // we fetch a small set, parse with three's SVGLoader, extrude into 3D, then
+  // replace placeholder geometries on the fragments in-place.
+  loadTelegramIcons() {
+    // chosen iconify ids:
+    //   logos:telegram      — official Telegram brand mark (paper plane in circle)
+    //   mdi:send            — bare paper plane outline
+    //   mdi:star-four-points — premium-like 4-point star
+    //   mdi:check-decagram  — verified badge (decagon + check)
+    //   mdi:bell            — notification bell
+    //   mdi:account-circle  — avatar circle
+    const ids = [
+      'logos:telegram',
+      'mdi:send',
+      'mdi:star-four-points',
+      'mdi:check-decagram',
+      'mdi:bell',
+      'mdi:account-circle',
+    ];
+    const urls = ids.map(id => `https://api.iconify.design/${id.replace(':', '/')}.svg`);
+
+    const loader = new SVGLoader();
+
+    Promise.all(urls.map((url, i) =>
+      fetch(url)
+        .then(r => {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.text();
+        })
+        .then(svgText => {
+          // SVGLoader.parse() returns { paths, xml }
+          const data = loader.parse(svgText);
+          return { id: ids[i], data };
+        })
+        .catch(err => {
+          console.warn('[PUSHTG·3D] icon load failed:', ids[i], err.message);
+          return null;
+        })
+    ))
+    .then(results => {
+      const ok = results.filter(Boolean);
+      if (!ok.length) {
+        console.warn('[PUSHTG·3D] no icons loaded, keeping placeholders');
+        return;
+      }
+      console.log('[PUSHTG·3D] icons loaded:', ok.map(o => o.id).join(', '));
+
+      // build extruded geometries from each loaded icon
+      const extrudeOpts = {
+        depth: 6,                // raw SVG coords are big (~24px viewBox), we scale later
+        bevelEnabled: true,
+        bevelThickness: 1.2,
+        bevelSize: 1.0,
+        bevelSegments: 2,
+        curveSegments: 12,
+      };
+
+      const iconGeos = ok.map(({ id, data }) => {
+        const geos = [];
+        data.paths.forEach(path => {
+          // shapes: SVGLoader gives ready-to-use THREE.Shape objects per path
+          const shapes = SVGLoader.createShapes(path);
+          shapes.forEach(shape => {
+            try {
+              const g = new THREE.ExtrudeGeometry(shape, extrudeOpts);
+              geos.push(g);
+            } catch (e) { /* skip malformed shape */ }
+          });
+        });
+        if (!geos.length) return null;
+
+        // merge into single geometry (THREE has no built-in merge w/o BufferGeometryUtils,
+        // so we just take the largest one — works fine for icons with one main path)
+        let main = geos[0];
+        let maxVerts = main.attributes.position.count;
+        for (let i = 1; i < geos.length; i++) {
+          if (geos[i].attributes.position.count > maxVerts) {
+            main = geos[i];
+            maxVerts = geos[i].attributes.position.count;
+          }
+        }
+        // dispose extras
+        geos.forEach(g => { if (g !== main) g.dispose(); });
+
+        // SVG y-axis is flipped relative to three's coords → flip back
+        main.scale(1, -1, 1);
+        // center on origin
+        main.center();
+        // normalize so the biggest dimension == 1, then scale to taste
+        main.computeBoundingBox();
+        const bb = main.boundingBox;
+        const size = Math.max(
+          bb.max.x - bb.min.x,
+          bb.max.y - bb.min.y,
+        );
+        if (size > 0) {
+          const s = 0.7 / size;   // target ~0.7 world units
+          main.scale(s, s, s);
+        }
+        // need normals for lighting after all those transforms
+        main.computeVertexNormals();
+        return { id, geo: main };
+      }).filter(Boolean);
+
+      if (!iconGeos.length) return;
+
+      // brand-aligned colors keyed by icon id
+      const colorMap = {
+        'logos:telegram':       0x2AABEE,
+        'mdi:send':             0x229ED9,
+        'mdi:star-four-points': 0xFFC93A,
+        'mdi:check-decagram':   0x2AABEE,
+        'mdi:bell':             0xFFFFFF,
+        'mdi:account-circle':   0x7C3AED,
+      };
+
+      // swap placeholder fragments' geometry & material with the real ones
+      this.fragments.children.forEach((mesh, i) => {
+        const pick = iconGeos[i % iconGeos.length];
+        // dispose placeholder geometry to free GPU memory
+        if (mesh.geometry) mesh.geometry.dispose();
+        mesh.geometry = pick.geo;
+        const c = colorMap[pick.id] ?? 0x2AABEE;
+        mesh.material.color.setHex(c);
+        mesh.material.emissive.setHex(c);
+        mesh.userData.branded = true;   // keep TG identity colors, don't repaint
+      });
+    });
   }
 
   // particle field — additive bright points
