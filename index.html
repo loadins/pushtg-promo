@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PUSHTG — пульт холодного аутрича в Telegram</title>
+  <meta name="description" content="Один оператор. Сотни диалогов. PushTG — система промышленного холодного аутрича в Telegram с AI на языке лида.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600;700;800;900&family=Onest:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script>
+    // diagnostic — surface module load failures to the user
+    window.addEventListener('error', (e) => {
+      const f = e.filename || '';
+      if (f.includes('scene.js') || f.includes('three') || f.includes('jsdelivr') || f.includes('unpkg')) {
+        console.error('[PUSHTG·3D] load failed:', e.message, f);
+        const t = document.getElementById('loaderStatus');
+        if (t) t.textContent = '3d cdn недоступен — см. консоль';
+      }
+    });
+    window.addEventListener('unhandledrejection', (e) => {
+      console.error('[PUSHTG·3D] unhandled rejection:', e.reason);
+    });
+    // preflight — verify Three.js CDN is reachable
+    fetch('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js', {method: 'HEAD'})
+      .then(r => console.log('[PUSHTG·3D] CDN preflight:', r.status))
+      .catch(err => {
+        console.error('[PUSHTG·3D] CDN unreachable:', err);
+        const t = document.getElementById('loaderStatus');
+        if (t) t.textContent = 'cdn unreachable — проверь сеть';
+      });
+  </script>
+</head>
+<body>
+
+<!-- ═══ LOADER ═══════════════════════════════════════════════════════ -->
+<div class="loader" id="loader">
+  <div class="loader-inner">
+    <div class="loader-logo">PUSHTG</div>
+    <div class="loader-bar"><div class="loader-fill" id="loaderFill"></div></div>
+    <div class="loader-status" id="loaderStatus">инициализация сцены</div>
+  </div>
+</div>
+
+<!-- ═══ 3D SCENE (persistent background) ═════════════════════════════ -->
+<canvas id="scene"></canvas>
+
+<!-- ═══ CURSOR ═══════════════════════════════════════════════════════ -->
+<div class="cursor" id="cursor" aria-hidden="true"></div>
+<canvas id="cursorTrail" aria-hidden="true"></canvas>
+
+<!-- ═══ HUD ══════════════════════════════════════════════════════════ -->
+<div class="hud hud--tl">
+  <div class="hud-logo">PUSHTG<span class="hud-logo-dot"></span></div>
+  <div class="hud-sub">v 1.0 · промышленный аутрич</div>
+</div>
+
+<div class="hud hud--tr">
+  <div class="mode-toggle" id="modeToggle">
+    <button class="mode-btn mode-btn--pain" data-mode="pain">ХОЛОДКА</button>
+    <button class="mode-btn mode-btn--solution is-active" data-mode="solution">PUSHTG</button>
+  </div>
+</div>
+
+<div class="hud hud--bl">
+  <div class="telemetry">
+    <div class="tel-row"><span class="tel-key">load</span><span class="tel-val" id="telLoad">100%</span></div>
+    <div class="tel-row"><span class="tel-key">accounts</span><span class="tel-val">128 / 128</span></div>
+    <div class="tel-row"><span class="tel-key">streams</span><span class="tel-val">4 active</span></div>
+    <div class="tel-row"><span class="tel-key">scene</span><span class="tel-val" id="telScene">intro</span></div>
+  </div>
+</div>
+
+<div class="hud hud--br">
+  <div class="section-indicator">
+    <span class="si-num" id="siNum">00</span>
+    <span class="si-divider">/</span>
+    <span class="si-total">05</span>
+  </div>
+</div>
+
+<!-- ═══ NARRATION (AI guide, bottom-center) ══════════════════════════ -->
+<div class="narration" id="narration">
+  <div class="narration-inner">
+    <span class="narration-dot"></span>
+    <span class="narration-text" id="narrationText">прокрути вниз — начнём</span>
+  </div>
+</div>
+
+<!-- ═══ MAIN CONTENT ═════════════════════════════════════════════════ -->
+<main class="story">
+
+  <!-- ─── SCENE 0 · INTRO ─────────────────────────────────────────── -->
+  <section class="scene scene--intro" data-scene="intro" data-num="00">
+    <div class="scene-content">
+      <p class="kicker reveal">[ 00 · intro ]</p>
+      <h1 class="hero-title">
+        <span class="hl reveal-mask"><span>Один оператор.</span></span>
+        <span class="hl reveal-mask" data-d="1"><span>Один процесс.</span></span>
+        <span class="hl hl--accent reveal-mask" data-d="2"><span>Сотни диалогов.</span></span>
+      </h1>
+      <p class="hero-desc reveal" data-d="3">
+        Промышленный аутрич в Telegram. AI ведёт лида на его языке. Всё на сервере.
+      </p>
+      <div class="scroll-prompt reveal" data-d="4">
+        <span>прокрути</span>
+        <svg width="14" height="22" viewBox="0 0 14 22" fill="none" aria-hidden="true">
+          <rect x="0.5" y="0.5" width="13" height="21" rx="6.5" stroke="currentColor" opacity=".4"/>
+          <circle cx="7" cy="7" r="2" fill="currentColor"><animate attributeName="cy" values="7;13;7" dur="2s" repeatCount="indefinite"/></circle>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SCENE 1 · ПОЛОЖЕНИЕ ВЕЩЕЙ (pinned, 5 steps) ─────────────── -->
+  <section class="scene scene--pain" data-scene="pain" data-num="01">
+    <div class="pain-pin">
+      <div class="pain-grid">
+        <div class="pain-left">
+          <p class="kicker">[ 01 · текущая реальность холодного аутрича ]</p>
+          <div class="pain-counter">
+            <span class="pc-num"><span id="painStepNum">1</span><span class="pc-total">/ 5</span></span>
+          </div>
+          <h2 class="pain-title" id="painTitle">Ручной охват</h2>
+          <p class="pain-body" id="painBody">
+            Менеджер вручную ищет группы, копирует юзернеймы, пишет каждому по очереди.
+            Четыре часа в день уходит на повторяющиеся операции до отправки первого сообщения.
+          </p>
+          <div class="pain-stats" id="painStats">
+            <div class="ps-item"><span class="ps-val">~4 ч</span><span class="ps-lbl">рутины в день</span></div>
+            <div class="ps-item"><span class="ps-val">~50</span><span class="ps-lbl">лидов в день, потолок</span></div>
+          </div>
+        </div>
+        <div class="pain-right">
+          <div class="pain-marker" id="painMarker">
+            <div class="pm-ring"></div>
+            <div class="pm-core"></div>
+            <div class="pm-code" id="painMarkerCode">err.manual</div>
+          </div>
+        </div>
+      </div>
+      <div class="pain-progress">
+        <div class="pp-fill" id="painProgress"></div>
+      </div>
+    </div>
+    <!-- 5 scroll triggers for steps -->
+    <div class="pain-steps">
+      <div class="ps-step" data-step="0"></div>
+      <div class="ps-step" data-step="1"></div>
+      <div class="ps-step" data-step="2"></div>
+      <div class="ps-step" data-step="3"></div>
+      <div class="ps-step" data-step="4"></div>
+    </div>
+  </section>
+
+  <!-- ─── SCENE 2 · РАЗВОРОТ ──────────────────────────────────────── -->
+  <section class="scene scene--shift" data-scene="shift" data-num="02">
+    <div class="scene-content scene-content--center">
+      <p class="kicker reveal">[ 02 · смена подхода ]</p>
+      <h2 class="shift-title">
+        <span class="reveal-mask"><span>Пока это происходило —</span></span>
+        <span class="reveal-mask hl--accent" data-d="1"><span>мы построили другой путь.</span></span>
+      </h2>
+      <p class="shift-desc reveal" data-d="2">
+        Не оптимизация рутины. Полная замена. Один процесс — сотня потоков без человека в цикле.
+      </p>
+    </div>
+  </section>
+
+  <!-- ─── SCENE 3 · РЕШЕНИЕ (5 pairs) ─────────────────────────────── -->
+  <section class="scene scene--solution" data-scene="solution" data-num="03">
+    <div class="solution-head">
+      <p class="kicker reveal">[ 03 · архитектура решения ]</p>
+      <h2 class="section-title reveal" data-d="1">
+        <span>Каждой боли —</span> <span class="hl--accent">технический ответ.</span>
+      </h2>
+    </div>
+
+    <div class="pairs">
+      <article class="pair reveal-card" data-d="0">
+        <div class="pair-num">01</div>
+        <div class="pair-pain">
+          <span class="pair-label">было</span>
+          <p>Один оператор пишет по одному. Потолок — 50 диалогов в день.</p>
+        </div>
+        <div class="pair-arrow">→</div>
+        <div class="pair-sol">
+          <span class="pair-label">стало</span>
+          <p><b>До 128 воркер-аккаунтов параллельно.</b> Лимит — мощность сервера.</p>
+          <div class="pair-tag">multi-account</div>
+        </div>
+      </article>
+
+      <article class="pair reveal-card" data-d="1">
+        <div class="pair-num">02</div>
+        <div class="pair-pain">
+          <span class="pair-label">было</span>
+          <p>Шаблон на русском уходит в Азию — лиды не отвечают.</p>
+        </div>
+        <div class="pair-arrow">→</div>
+        <div class="pair-sol">
+          <span class="pair-label">стало</span>
+          <p><b>AI ведёт диалог на языке гео:</b> хинди, урду, бенгали, индонезийский.</p>
+          <div class="pair-tag">geo-aware AI</div>
+        </div>
+      </article>
+
+      <article class="pair reveal-card" data-d="2">
+        <div class="pair-num">03</div>
+        <div class="pair-pain">
+          <span class="pair-label">было</span>
+          <p>Лид замолчал — менеджер забыл. Деньги ушли.</p>
+        </div>
+        <div class="pair-arrow">→</div>
+        <div class="pair-sol">
+          <span class="pair-label">стало</span>
+          <p><b>Follow-up: 3 мин → 15 мин → 12 ч.</b> Пять касаний на лида. Ни один не теряется.</p>
+          <div class="pair-tag">auto follow-up</div>
+        </div>
+      </article>
+
+      <article class="pair reveal-card" data-d="3">
+        <div class="pair-num">04</div>
+        <div class="pair-pain">
+          <span class="pair-label">было</span>
+          <p>50 сообщений с одного IP — Telegram бан.</p>
+        </div>
+        <div class="pair-arrow">→</div>
+        <div class="pair-sol">
+          <span class="pair-label">стало</span>
+          <p><b>Пул прокси + прогрев сессий + задержки 45–150 с.</b> Аккаунты живут долго.</p>
+          <div class="pair-tag">anti-ban</div>
+        </div>
+      </article>
+
+      <article class="pair reveal-card" data-d="4">
+        <div class="pair-num">05</div>
+        <div class="pair-pain">
+          <span class="pair-label">было</span>
+          <p>Не видно, где лид застрял. Повторение ошибок.</p>
+        </div>
+        <div class="pair-arrow">→</div>
+        <div class="pair-sol">
+          <span class="pair-label">стало</span>
+          <p><b>CRM-воронка в реальном времени:</b> greeting → qa → form → redirect → won.</p>
+          <div class="pair-tag">CRM pipeline</div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ─── SCENE 4 · ЧИСЛА ─────────────────────────────────────────── -->
+  <section class="scene scene--numbers" data-scene="numbers" data-num="04">
+    <div class="scene-content scene-content--center">
+      <p class="kicker reveal">[ 04 · показатели ]</p>
+      <h2 class="section-title reveal" data-d="1">
+        <span>Цифры</span> <span class="hl--accent">с боевых проектов.</span>
+      </h2>
+    </div>
+
+    <div class="numbers-grid">
+      <div class="number reveal-card" data-d="0">
+        <div class="n-val" data-count="128" data-suffix="">0</div>
+        <div class="n-unit">аккаунтов на один сервер</div>
+        <div class="n-note">верхняя граница на текущей архитектуре</div>
+      </div>
+      <div class="number reveal-card" data-d="1">
+        <div class="n-val" data-count="7.5" data-suffix="%" data-decimals="1">0</div>
+        <div class="n-unit">средняя конверсия</div>
+        <div class="n-note">vs ~2% на ручной отправке</div>
+      </div>
+      <div class="number reveal-card" data-d="2">
+        <div class="n-val">0</div>
+        <div class="n-unit">потерянных лидов</div>
+        <div class="n-note">follow-up до 5 касаний на каждого</div>
+      </div>
+      <div class="number reveal-card" data-d="3">
+        <div class="n-val">∞</div>
+        <div class="n-unit">гео-конфигов</div>
+        <div class="n-note">без доплат и тарифов</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SCENE 5 · CTA ───────────────────────────────────────────── -->
+  <section class="scene scene--cta" data-scene="cta" data-num="05">
+    <div class="scene-content scene-content--center">
+      <p class="kicker reveal">[ 05 · доступ ]</p>
+      <h2 class="cta-title">
+        <span class="reveal-mask"><span>Холодная отправка вручную —</span></span>
+        <span class="reveal-mask hl--accent" data-d="1"><span>устаревший процесс.</span></span>
+      </h2>
+      <p class="cta-desc reveal" data-d="2">
+        Демо на твоих аккаунтах. 30 минут. Без слайдов.
+      </p>
+      <div class="cta-meta reveal" data-d="3">
+        <span>self-hosted</span><span>·</span>
+        <span>zero cloud</span><span>·</span>
+        <span>your data</span>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ═══ FOOTER ═══════════════════════════════════════════════════════ -->
+<footer class="footer">
+  <div class="footer-inner">
+    <span class="footer-logo">PUSHTG</span>
+    <span class="footer-copy">© 2026 · промышленный аутрич в Telegram</span>
+  </div>
+</footer>
+
+<script type="module" src="scene.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
