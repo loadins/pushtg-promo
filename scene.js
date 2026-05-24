@@ -215,7 +215,7 @@ class Scene {
  this.renderer.setClearColor(0x04060F, 1);
  this.renderer.outputColorSpace = THREE.SRGBColorSpace;
  this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
- this.renderer.toneMappingExposure = 0.63;
+ this.renderer.toneMappingExposure = 0.8;
  }
 
  setupCamera() {
