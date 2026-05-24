@@ -232,61 +232,191 @@ class Scene {
     this.scene.add(pt2);
   }
 
-  // main blob — the centrepiece (standard material for cross-browser compat)
+  // main object — atom (nucleus + 3 elliptical electron orbits)
   buildBlob() {
-    const geo = new THREE.IcosahedronGeometry(1.5, 64);
+    this.atom = new THREE.Group();
+    this.atom.position.set(0.6, -0.15, 0);
+
+    // ── nucleus: glowing core sphere
+    const nucGeo = new THREE.IcosahedronGeometry(0.55, 4);
     this.blobMat = new THREE.MeshPhysicalMaterial({
       color: 0x1a2d5e,
       emissive: 0x4F7AFF,
-      emissiveIntensity: 0.5,
+      emissiveIntensity: 1.6,
       metalness: 0.4,
       roughness: 0.15,
-      clearcoat: 0.5,
+      clearcoat: 0.6,
       clearcoatRoughness: 0.2,
       envMapIntensity: 0.8,
     });
-    this.blob = new THREE.Mesh(geo, this.blobMat);
-    this.blob.position.set(0.6, -0.15, 0);
-    this.scene.add(this.blob);
+    this.nucleus = new THREE.Mesh(nucGeo, this.blobMat);
+    this.atom.add(this.nucleus);
 
-    // wireframe overlay for tech feel
-    const wireGeo = new THREE.IcosahedronGeometry(1.55, 2);
+    // small wire shell for tech feel
+    const wireGeo = new THREE.IcosahedronGeometry(0.62, 1);
     const wireMat = new THREE.MeshBasicMaterial({
       wireframe: true,
       transparent: true,
-      opacity: 0.12,
+      opacity: 0.25,
       color: 0x4F7AFF,
       depthWrite: false,
     });
     this.blobWire = new THREE.Mesh(wireGeo, wireMat);
-    this.blobWire.position.copy(this.blob.position);
-    this.scene.add(this.blobWire);
+    this.atom.add(this.blobWire);
+
+    // ── electron orbits: 3 ellipse rings at different angles
+    this.orbits = [];
+    this.electrons = [];
+    const orbitConfigs = [
+      { a: 1.8, b: 1.2, rotX: 0,          rotY: 0,          rotZ: 0,           speed: 1.2 },
+      { a: 1.7, b: 1.3, rotX: Math.PI/3,  rotY: Math.PI/4,  rotZ: 0,           speed: -1.6 },
+      { a: 1.9, b: 1.1, rotX: -Math.PI/4, rotY: Math.PI/2,  rotZ: Math.PI/6,   speed: 0.9 },
+    ];
+
+    orbitConfigs.forEach((cfg, i) => {
+      // ring (ellipse) — built from points to allow non-circular shape
+      const pts = [];
+      const segs = 128;
+      for (let s = 0; s <= segs; s++) {
+        const t = (s / segs) * Math.PI * 2;
+        pts.push(new THREE.Vector3(Math.cos(t) * cfg.a, Math.sin(t) * cfg.b, 0));
+      }
+      const ringGeo = new THREE.BufferGeometry().setFromPoints(pts);
+      const ringMat = new THREE.LineBasicMaterial({
+        color: 0x4F7AFF,
+        transparent: true,
+        opacity: 0.4,
+      });
+      const ring = new THREE.Line(ringGeo, ringMat);
+      ring.rotation.set(cfg.rotX, cfg.rotY, cfg.rotZ);
+      ring.userData = cfg;
+      this.atom.add(ring);
+      this.orbits.push(ring);
+
+      // electron — small glowing sphere following the ellipse
+      const eGeo = new THREE.SphereGeometry(0.09, 16, 16);
+      const eMat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        emissive: 0x4F7AFF,
+        emissiveIntensity: 2.5,
+      });
+      const electron = new THREE.Mesh(eGeo, eMat);
+      electron.userData = { ...cfg, phase: i * 1.5 };
+      this.atom.add(electron);
+      this.electrons.push(electron);
+    });
+
+    this.scene.add(this.atom);
+
+    // alias so legacy update code that touches this.blob still works
+    this.blob = this.nucleus;
   }
 
-  // floating accent fragments — small geometry pieces orbiting in the void
+  // ── Telegram icon shape builders (2D silhouettes → 3D extruded) ──
+  makePaperPlaneShape() {
+    // simplified TG paper plane silhouette
+    const s = new THREE.Shape();
+    s.moveTo(-0.5,  0.0);
+    s.lineTo( 0.5,  0.45);
+    s.lineTo( 0.15, 0.05);
+    s.lineTo( 0.5, -0.45);
+    s.lineTo(-0.5,  0.0);
+    return s;
+  }
+  makePremiumStarShape() {
+    // 5-point star — Telegram Premium emblem
+    const s = new THREE.Shape();
+    const spikes = 5;
+    const outer = 0.45;
+    const inner = 0.19;
+    for (let i = 0; i < spikes * 2; i++) {
+      const r = i % 2 === 0 ? outer : inner;
+      const a = (i / (spikes * 2)) * Math.PI * 2 - Math.PI / 2;
+      const x = Math.cos(a) * r;
+      const y = Math.sin(a) * r;
+      if (i === 0) s.moveTo(x, y); else s.lineTo(x, y);
+    }
+    return s;
+  }
+  makeCheckShape() {
+    // verified checkmark — thick stroke as polygon
+    const s = new THREE.Shape();
+    s.moveTo(-0.35, -0.02);
+    s.lineTo(-0.10, -0.30);
+    s.lineTo( 0.40,  0.25);
+    s.lineTo( 0.30,  0.36);
+    s.lineTo(-0.12, -0.06);
+    s.lineTo(-0.26,  0.10);
+    s.lineTo(-0.35, -0.02);
+    return s;
+  }
+  makeCircleShape(r=0.32) {
+    // chat bubble dot / avatar
+    const s = new THREE.Shape();
+    s.absarc(0, 0, r, 0, Math.PI * 2, false);
+    return s;
+  }
+  makeChatBubbleShape() {
+    // rounded bubble with tail (very stylised)
+    const s = new THREE.Shape();
+    const w = 0.5, h = 0.35, r = 0.12;
+    s.moveTo(-w + r, -h);
+    s.lineTo( w - r, -h);
+    s.quadraticCurveTo( w, -h,  w, -h + r);
+    s.lineTo( w,  h - r);
+    s.quadraticCurveTo( w,  h,  w - r,  h);
+    s.lineTo(-w + r,  h);
+    s.quadraticCurveTo(-w,  h, -w,  h - r);
+    s.lineTo(-w, -h + r + 0.12);
+    s.lineTo(-w - 0.18, -h);                       // tail
+    s.lineTo(-w,        -h + 0.04);
+    s.lineTo(-w,        -h + r);
+    s.quadraticCurveTo(-w, -h, -w + r, -h);
+    return s;
+  }
+
+  // floating Telegram emblems orbiting in the void (replaces abstract fragments)
   buildFragments() {
     this.fragments = new THREE.Group();
     const count = 14;
+
+    // build geometries once
+    const extrudeOpts = { depth: 0.08, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 2, curveSegments: 12 };
     const shapes = [
-      new THREE.OctahedronGeometry(0.18, 0),
-      new THREE.TetrahedronGeometry(0.22, 0),
-      new THREE.BoxGeometry(0.22, 0.22, 0.22),
-      new THREE.TorusGeometry(0.2, 0.05, 12, 24),
+      new THREE.ExtrudeGeometry(this.makePaperPlaneShape(),   extrudeOpts),
+      new THREE.ExtrudeGeometry(this.makePremiumStarShape(),  extrudeOpts),
+      new THREE.ExtrudeGeometry(this.makeCheckShape(),        extrudeOpts),
+      new THREE.ExtrudeGeometry(this.makeChatBubbleShape(),   extrudeOpts),
+      new THREE.ExtrudeGeometry(this.makeCircleShape(0.28),   extrudeOpts),
     ];
+    // center each geometry on its own pivot
+    shapes.forEach(g => g.center());
+
+    // Telegram brand-aligned palette
+    const tgColors = [
+      0x2AABEE, // Telegram blue
+      0x229ED9, // darker TG blue
+      0xFFC93A, // Premium gold
+      0xFFFFFF, // verified white
+      0x7C3AED, // accent violet
+    ];
+
     for (let i = 0; i < count; i++) {
       const g = shapes[i % shapes.length];
+      const c = tgColors[i % tgColors.length];
       const m = new THREE.MeshStandardMaterial({
-        color: i % 2 === 0 ? 0x4F7AFF : 0x7C3AED,
-        emissive: i % 2 === 0 ? 0x4F7AFF : 0x7C3AED,
-        emissiveIntensity: 0.4,
-        roughness: 0.25,
-        metalness: 0.6,
+        color: c,
+        emissive: c,
+        emissiveIntensity: 0.55,
+        roughness: 0.3,
+        metalness: 0.5,
       });
       const mesh = new THREE.Mesh(g, m);
       const r = 2.6 + Math.random() * 2.4;
       const a = (i / count) * Math.PI * 2 + Math.random() * 0.6;
       const h = (Math.random() - 0.5) * 2.4;
       mesh.position.set(Math.cos(a) * r, h, Math.sin(a) * r);
+      mesh.scale.setScalar(0.7 + Math.random() * 0.5);
       mesh.userData = {
         baseY: h,
         speed: 0.3 + Math.random() * 0.4,
@@ -296,6 +426,8 @@ class Scene {
           (Math.random() - 0.5) * 0.6,
           (Math.random() - 0.5) * 0.4,
         ),
+        // mark some as "branded" so they don't get color-overridden in tick()
+        branded: i % 5 < 3,
       };
       this.fragments.add(mesh);
     }
@@ -507,17 +639,43 @@ class Scene {
     this.camera.position.z = this.camDist + Math.sin(this.time * 0.18) * 0.12;
     this.camera.lookAt(0, this.camY * 0.4, 0);
 
-    // blob: rotate + colour animate
+    // atom: rotate whole group + animate nucleus material
+    if (this.atom) {
+      this.atom.rotation.x = this.time * 0.12 + this.mouse.y * 0.25;
+      this.atom.rotation.y = this.time * 0.18 + this.mouse.x * 0.35;
+    }
     if (this.blob) {
-      this.blob.rotation.x = this.time * 0.12 + this.mouse.y * 0.25;
-      this.blob.rotation.y = this.time * 0.18 + this.mouse.x * 0.35;
+      // nucleus inner spin for extra life
+      this.blob.rotation.y = this.time * 0.5;
       if (this.blobMat) {
         this.blobMat.color.lerp(this.colorA, 0.03);
         this.blobMat.emissive.lerp(this.colorA, 0.03);
       }
-      this.blobWire.rotation.copy(this.blob.rotation);
-      if (this.blobWire.material) {
+      if (this.blobWire && this.blobWire.material) {
         this.blobWire.material.color.lerp(this.colorA, 0.03);
+      }
+    }
+
+    // electrons travelling along their elliptical orbits
+    if (this.electrons) {
+      this.electrons.forEach((e, i) => {
+        const u = e.userData;
+        const t = this.time * u.speed + u.phase;
+        // local-space position on ellipse
+        const lx = Math.cos(t) * u.a;
+        const ly = Math.sin(t) * u.b;
+        // rotate by orbit's euler to put electron onto the tilted plane
+        const v = new THREE.Vector3(lx, ly, 0);
+        v.applyEuler(new THREE.Euler(u.rotX, u.rotY, u.rotZ));
+        e.position.copy(v);
+        // tint electron with current accent
+        if (e.material) e.material.emissive.lerp(this.colorA, 0.04);
+      });
+      // tint orbit rings
+      if (this.orbits) {
+        this.orbits.forEach(o => {
+          if (o.material) o.material.color.lerp(this.colorA, 0.03);
+        });
       }
     }
 
@@ -535,10 +693,13 @@ class Scene {
         m.rotation.x += u.rotSpeed.x * dt;
         m.rotation.y += u.rotSpeed.y * dt;
         m.rotation.z += u.rotSpeed.z * dt;
-        // color match palette
-        const c = i % 2 === 0 ? this.colorA : this.colorB;
-        m.material.color.lerp(c, 0.02);
-        m.material.emissive.lerp(c, 0.02);
+        // only non-branded fragments follow the palette swap;
+        // TG-branded icons (plane, star, check) keep their identity colors
+        if (!u.branded) {
+          const c = i % 2 === 0 ? this.colorA : this.colorB;
+          m.material.color.lerp(c, 0.02);
+          m.material.emissive.lerp(c, 0.02);
+        }
       });
     }
 
