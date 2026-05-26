@@ -68,17 +68,17 @@ body::before{
   content:'';
   position:fixed;inset:0;z-index:1;
   background:
-    radial-gradient(ellipse 90% 70% at 75% 20%, rgba(138,168,255,.10), transparent 55%),
-    radial-gradient(ellipse 70% 60% at 15% 75%, rgba(184,156,232,.08), transparent 60%),
-    radial-gradient(ellipse 60% 50% at 50% 50%, rgba(120,140,220,.05), transparent 70%);
+    radial-gradient(ellipse 90% 70% at 75% 20%, rgba(138,168,255,.08), transparent 55%),
+    radial-gradient(ellipse 70% 60% at 15% 75%, rgba(184,156,232,.06), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 50% 50%, rgba(120,140,220,.04), transparent 70%);
   pointer-events:none;
   transition:opacity .8s ease;
 }
 body.mode-pain::before{
   background:
-    radial-gradient(ellipse 90% 70% at 75% 20%, rgba(255,142,142,.10), transparent 55%),
-    radial-gradient(ellipse 70% 60% at 15% 75%, rgba(232,184,115,.07), transparent 60%),
-    radial-gradient(ellipse 60% 50% at 50% 50%, rgba(220,140,140,.05), transparent 70%);
+    radial-gradient(ellipse 90% 70% at 75% 20%, rgba(255,142,142,.08), transparent 55%),
+    radial-gradient(ellipse 70% 60% at 15% 75%, rgba(232,184,115,.06), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 50% 50%, rgba(220,140,140,.04), transparent 70%);
 }
 
 /* ─── CURSOR ────────────────────────────────────────────────────── */
@@ -174,7 +174,7 @@ body.mode-pain::before{
 .hud-logo-dot{
   width:6px;height:6px;border-radius:50%;
   background:var(--accent);
-  box-shadow:0 0 12px var(--accent),0 0 24px var(--accent);
+  box-shadow:0 0 10px var(--accent),0 0 19px var(--accent);
   animation:pulse 2.4s ease-in-out infinite;
 }
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
@@ -204,11 +204,11 @@ body.mode-pain::before{
 .mode-btn.is-active{
   color:#fff;
   background:linear-gradient(135deg,var(--blue),var(--violet));
-  box-shadow:0 4px 16px rgba(138,168,255,.45);
+  box-shadow:0 4px 13px rgba(138,168,255,.36);
 }
 .mode-btn--pain.is-active{
   background:linear-gradient(135deg,var(--red),#E8B873);
-  box-shadow:0 4px 16px rgba(255,142,142,.45);
+  box-shadow:0 4px 13px rgba(255,142,142,.36);
 }
 
 /* telemetry */
@@ -253,7 +253,7 @@ body.mode-pain::before{
 .narration-dot{
   width:6px;height:6px;border-radius:50%;
   background:var(--accent);
-  box-shadow:0 0 10px var(--accent),0 0 20px var(--accent);
+  box-shadow:0 0 8px var(--accent),0 0 16px var(--accent);
   flex-shrink:0;
 }
 .narration-text{transition:opacity .25s}
@@ -269,7 +269,7 @@ body.mode-pain::before{
 .story .section-title{
   color:#fff;
   text-shadow:
-    0 0 12px rgba(138,168,255,.25),
+    0 0 12px rgba(138,168,255,.20),
     0 2px 20px rgba(0,0,0,.5);
   transition:text-shadow var(--t-med);
 }
@@ -280,7 +280,7 @@ body.mode-pain .story .cta-title,
 body.mode-pain .story .section-title{
   color:#fff;
   text-shadow:
-    0 0 12px rgba(255,142,142,.25),
+    0 0 12px rgba(255,142,142,.20),
     0 2px 20px rgba(0,0,0,.5);
 }
 .scene{position:relative;padding:120px var(--pad-x);max-width:var(--max-w);margin:0 auto}
@@ -298,13 +298,13 @@ body.mode-pain .story .section-title{
 .hl--accent{
   color:#A8C0FF;
   text-shadow:
-    0 0 12px rgba(138,168,255,.35),
+    0 0 12px rgba(138,168,255,.28),
     0 2px 20px rgba(0,0,0,.4);
 }
 body.mode-pain .hl--accent{
   color:#FFB0B0;
   text-shadow:
-    0 0 12px rgba(255,142,142,.35),
+    0 0 12px rgba(255,142,142,.28),
     0 2px 20px rgba(0,0,0,.4);
 }
 
@@ -408,7 +408,7 @@ body.mode-pain .pain-body{color:#fff}
   font-weight:700;font-size:2.4rem;
   color:#FFB0B0;
   text-shadow:
-    0 0 12px rgba(255,142,142,.35),
+    0 0 12px rgba(255,142,142,.28),
     0 2px 12px rgba(0,0,0,.5);
 }
 .ps-lbl{
@@ -451,7 +451,7 @@ body.mode-pain .pain-body{color:#fff}
   width:64px;height:64px;
   border-radius:50%;
   background:radial-gradient(circle,var(--red),rgba(179,109,109,.2));
-  box-shadow:0 0 30px var(--red);
+  box-shadow:0 0 24px var(--red);
 }
 .pm-code{
   position:absolute;
@@ -558,7 +558,7 @@ body.mode-pain .pain-body{color:#fff}
   color:#fff;
 }
 .pair-pain p{color:rgba(220,232,255,.75);font-size:1rem}
-.pair-sol p b{color:#fff;font-weight:700;text-shadow:0 0 12px rgba(138,168,255,.5)}
+.pair-sol p b{color:#fff;font-weight:700;text-shadow:0 0 12px rgba(138,168,255,.4)}
 .pair-tag{
   display:inline-block;
   margin-top:10px;
@@ -598,7 +598,7 @@ body.mode-pain .pain-body{color:#fff}
   letter-spacing:-.03em;
   color:#fff;
   text-shadow:
-    0 0 15px rgba(138,168,255,.35),
+    0 0 15px rgba(138,168,255,.28),
     0 2px 20px rgba(0,0,0,.5);
   font-variant-numeric:tabular-nums;
 }

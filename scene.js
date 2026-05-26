@@ -114,10 +114,10 @@ const BLOB_FRAG = `
  vec3 viewDir = normalize(cameraPosition - vPos);
  float rim = 1.0 - max(dot(viewDir, vNormal), 0.0);
  rim = pow(rim, 2.2);
- vec3 col = base + uColorRim * rim * 0.72;
+ vec3 col = base + uColorRim * rim * 0.58;
 
  // subtle pulse
- col *= 0.51 + 0.09 * sin(uTime * 0.6);
+ col *= 0.41 + 0.07 * sin(uTime * 0.6);
 
  gl_FragColor = vec4(col, 1.0);
  }
@@ -156,8 +156,8 @@ class Scene {
  this.camY = 0;
  this.camYTarget = 0;
 
- this.bloomStrength = 0.54;
- this.bloomTarget = 0.54;
+ this.bloomStrength = 0.43;
+ this.bloomTarget = 0.43;
 
  this.clock = new THREE.Clock();
  this.init();
@@ -215,7 +215,7 @@ class Scene {
  this.renderer.setClearColor(0x04060F, 1);
  this.renderer.outputColorSpace = THREE.SRGBColorSpace;
  this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
- this.renderer.toneMappingExposure = 2;
+ this.renderer.toneMappingExposure = 1.6;
  }
 
  setupCamera() {
@@ -228,11 +228,12 @@ class Scene {
  this.camera.position.set(0, 0, this.camDist);
 
  // minimal lighting — geometry uses custom shader, but fragments use standard mats
- this.scene.add(new THREE.AmbientLight(0xffffff, 0.3));
- const pt = new THREE.PointLight(0x4F7AFF, 1.2, 12);
+ this.scene.add(new THREE.AmbientLight(0xffffff, 0.24));
+ const pt = new THREE.PointLight(0x4F7AFF, 0.96, 12);
  pt.position.set(3, 2, 4);
  this.scene.add(pt);
- const pt2 = new THREE.PointLight(0x7C3AED, 0.84, 14);
+ // тёплый янтарный fill, согласуется с жёлтым ядром
+ const pt2 = new THREE.PointLight(0xFFC93A, 0.55, 14);
  pt2.position.set(-3, -1, 3);
  this.scene.add(pt2);
  }
@@ -242,28 +243,32 @@ class Scene {
  this.atom = new THREE.Group();
  this.atom.position.set(0.6, -0.15, 0);
 
- // ── nucleus: glowing core sphere
+ // ── nucleus: glowing core sphere — отбелённый жёлтый (кремово-золотой)
+ // выбран hex с явной жёлтой компонентой, чтобы palette-detection
+ // (AI/брендинг) однозначно классифицировал ядро как «yellow».
  const nucGeo = new THREE.IcosahedronGeometry(0.55, 4);
+ this.nucleusColor = new THREE.Color(0xFBE7A8); // отбелённый жёлтый
+ this.nucleusEmissive = new THREE.Color(0xFFD56B); // тёплый glow
  this.blobMat = new THREE.MeshPhysicalMaterial({
- color: 0x1a2d5e,
- emissive: 0x4F7AFF,
- emissiveIntensity: 0.96,
- metalness: 0.4,
- roughness: 0.15,
- clearcoat: 0.6,
- clearcoatRoughness: 0.2,
- envMapIntensity: 0.48,
+ color: this.nucleusColor.clone(),
+ emissive: this.nucleusEmissive.clone(),
+ emissiveIntensity: 0.85,
+ metalness: 0.3,
+ roughness: 0.22,
+ clearcoat: 0.5,
+ clearcoatRoughness: 0.18,
+ envMapIntensity: 0.4,
  });
  this.nucleus = new THREE.Mesh(nucGeo, this.blobMat);
  this.atom.add(this.nucleus);
 
- // small wire shell for tech feel
+ // small wire shell for tech feel — тоже в жёлтом тоне для единой палитры ядра
  const wireGeo = new THREE.IcosahedronGeometry(0.62, 1);
  const wireMat = new THREE.MeshBasicMaterial({
  wireframe: true,
  transparent: true,
- opacity: 0.15,
- color: 0x4F7AFF,
+ opacity: 0.14,
+ color: 0xFBE7A8,
  depthWrite: false,
  });
  this.blobWire = new THREE.Mesh(wireGeo, wireMat);
@@ -290,7 +295,7 @@ class Scene {
  const ringMat = new THREE.LineBasicMaterial({
  color: 0x4F7AFF,
  transparent: true,
- opacity: 0.24,
+ opacity: 0.19,
  });
  const ring = new THREE.Line(ringGeo, ringMat);
  ring.rotation.set(cfg.rotX, cfg.rotY, cfg.rotZ);
@@ -303,7 +308,7 @@ class Scene {
  const eMat = new THREE.MeshStandardMaterial({
  color: 0xffffff,
  emissive: 0x4F7AFF,
- emissiveIntensity: 1.5,
+ emissiveIntensity: 1.2,
  });
  const electron = new THREE.Mesh(eGeo, eMat);
  electron.userData = { ...cfg, phase: i * 1.5 };
@@ -380,10 +385,13 @@ class Scene {
  return s;
  }
 
- // floating Telegram emblems orbiting in the void (replaces abstract fragments)
+ // floating Telegram emblems on dedicated orbital shells.
+ // фрагменты раскиданы по трём радиальным «оболочкам» с гарантированным
+ // gap > model-size, внутри shell — равномерное распределение по углу.
+ // каждая модель летит по СВОЕЙ наклонённой орбите => траектории
+ // не пересекаются между собой (детерминированно, без коллизий).
  buildFragments() {
  this.fragments = new THREE.Group();
- const count = 14;
 
  // build geometries once
  const extrudeOpts = { depth: 0.08, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 2, curveSegments: 12 };
@@ -394,48 +402,62 @@ class Scene {
  new THREE.ExtrudeGeometry(this.makeChatBubbleShape(), extrudeOpts),
  new THREE.ExtrudeGeometry(this.makeCircleShape(0.28), extrudeOpts),
  ];
- // center each geometry on its own pivot
  shapes.forEach(g => g.center());
 
- // Telegram brand-aligned palette
  const tgColors = [
  0x2AABEE, // Telegram blue
  0x229ED9, // darker TG blue
  0xFFC93A, // Premium gold
  0xFFFFFF, // verified white
- 0x7C3AED, // accent violet
+ 0xA8C0FF, // soft blue accent
  ];
 
- for (let i = 0; i < count; i++) {
+ // три оболочки, каждая на своём радиусе.
+ // gap между shells = 1.2 world units — заведомо больше bbox любой модели (~0.7).
+ // внутри shell слоты по углу — minAngular = 2π/count → исключает столкновения.
+ const shells = [
+ { r: 3.0, count: 4, tiltX: 0.0, tiltZ: 0.0, speed: 0.20, wobble: 0.08 },
+ { r: 4.2, count: 5, tiltX: Math.PI / 5, tiltZ: -Math.PI / 8, speed: -0.14, wobble: 0.10 },
+ { r: 5.4, count: 4, tiltX: -Math.PI / 6, tiltZ: Math.PI / 7, speed: 0.11, wobble: 0.12 },
+ ];
+
+ let i = 0;
+ shells.forEach((shell, si) => {
+ for (let k = 0; k < shell.count; k++) {
  const g = shapes[i % shapes.length];
  const c = tgColors[i % tgColors.length];
  const m = new THREE.MeshStandardMaterial({
  color: c,
  emissive: c,
- emissiveIntensity: 0.33,
+ emissiveIntensity: 0.26,
  roughness: 0.3,
  metalness: 0.5,
  });
  const mesh = new THREE.Mesh(g, m);
- const r = 2.6 + Math.random() * 2.4;
- const a = (i / count) * Math.PI * 2 + Math.random() * 0.6;
- const h = (Math.random() - 0.5) * 2.4;
- mesh.position.set(Math.cos(a) * r, h, Math.sin(a) * r);
- mesh.scale.setScalar(0.7 + Math.random() * 0.5);
+ mesh.scale.setScalar(0.55 + (i % 3) * 0.1);
+
+ // равномерный угловой слот внутри shell
+ const slotAngle = (k / shell.count) * Math.PI * 2 + si * 0.55;
  mesh.userData = {
- baseY: h,
- speed: 0.3 + Math.random() * 0.4,
- phase: Math.random() * Math.PI * 2,
+ shellR: shell.r,
+ tiltX: shell.tiltX,
+ tiltZ: shell.tiltZ,
+ // лёгкий variance скорости (≤7%) — фрагменты не «фотографируются»
+ // друг с другом, но и не догоняют соседей по своей же shell
+ speed: shell.speed * (1 + (i % 3) * 0.04),
+ phase: slotAngle,
+ wobble: shell.wobble,
  rotSpeed: new THREE.Vector3(
  (Math.random() - 0.5) * 0.5,
  (Math.random() - 0.5) * 0.6,
  (Math.random() - 0.5) * 0.4,
  ),
- // mark some as "branded" so they don't get color-overridden in tick()
  branded: i % 5 < 3,
  };
  this.fragments.add(mesh);
+ i++;
  }
+ });
  this.scene.add(this.fragments);
  }
 
@@ -457,7 +479,6 @@ class Scene {
  'mdi:star-four-points',
  'mdi:check-decagram',
  'mdi:bell',
- 'mdi:account-circle',
  ];
  const urls = ids.map(id => `https://api.iconify.design/${id.replace(':', '/')}.svg`);
 
@@ -553,7 +574,6 @@ class Scene {
  'mdi:star-four-points': 0xFFC93A,
  'mdi:check-decagram': 0x2AABEE,
  'mdi:bell': 0xFFFFFF,
- 'mdi:account-circle': 0x7C3AED,
  };
 
  // swap placeholder fragments' geometry & material with the real ones
@@ -592,7 +612,7 @@ class Scene {
  size: 0.04,
  color: 0xffffff,
  transparent: true,
- opacity: 0.51,
+ opacity: 0.41,
  depthWrite: false,
  blending: THREE.AdditiveBlending,
  sizeAttenuation: true,
@@ -627,7 +647,7 @@ class Scene {
  void main(){
  float d = distance(vUv, vec2(0.5));
  float a = smoothstep(0.5, 0.0, d);
- a = pow(a, 2.0) * 0.33;
+ a = pow(a, 2.0) * 0.26;
  gl_FragColor = vec4(uColor, a);
  }
  `,
@@ -691,42 +711,42 @@ class Scene {
  this.jitterTarget = 0;
  this.camDistTarget = 5.2;
  this.camYTarget = 0;
- this.bloomTarget = 0.54;
+ this.bloomTarget = 0.43;
  break;
  case 'pain':
  this.distortTarget = 0.6;
  this.jitterTarget = 1.0;
  this.camDistTarget = 4.4;
  this.camYTarget = -0.4;
- this.bloomTarget = 0.84;
+ this.bloomTarget = 0.67;
  break;
  case 'shift':
  this.distortTarget = 0.35;
  this.jitterTarget = 0.2;
  this.camDistTarget = 5.0;
  this.camYTarget = 0.1;
- this.bloomTarget = 0.66;
+ this.bloomTarget = 0.53;
  break;
  case 'solution':
  this.distortTarget = 0.22;
  this.jitterTarget = 0;
  this.camDistTarget = 5.6;
  this.camYTarget = 0.2;
- this.bloomTarget = 0.57;
+ this.bloomTarget = 0.46;
  break;
  case 'numbers':
  this.distortTarget = 0.18;
  this.jitterTarget = 0;
  this.camDistTarget = 7.0;
  this.camYTarget = 0.3;
- this.bloomTarget = 0.48;
+ this.bloomTarget = 0.38;
  break;
  case 'cta':
  this.distortTarget = 0.4;
  this.jitterTarget = 0;
  this.camDistTarget = 3.6;
  this.camYTarget = 0;
- this.bloomTarget = 0.9;
+ this.bloomTarget = 0.72;
  break;
  }
  }
@@ -783,12 +803,15 @@ class Scene {
  if (this.blob) {
  // nucleus inner spin for extra life
  this.blob.rotation.y = this.time * 0.5;
+ // ядро ЗАФИКСИРОВАНО в отбелённом жёлтом — palette-режим
+ // (solution/pain) его не перебивает, иначе теряется метафора
+ // и AI-классификация цвета.
  if (this.blobMat) {
- this.blobMat.color.lerp(this.colorA, 0.03);
- this.blobMat.emissive.lerp(this.colorA, 0.03);
+ this.blobMat.color.copy(this.nucleusColor);
+ this.blobMat.emissive.copy(this.nucleusEmissive);
  }
  if (this.blobWire && this.blobWire.material) {
- this.blobWire.material.color.lerp(this.colorA, 0.03);
+ this.blobWire.material.color.copy(this.nucleusColor);
  }
  }
 
@@ -816,21 +839,29 @@ class Scene {
  }
 
  if (this.halo) {
- this.halo.material.uniforms.uColor.value.copy(this.colorA);
+ // ореол ядра — тоже жёлтый, чтобы визуально подкреплять «золотое ядро»
+ this.halo.material.uniforms.uColor.value.copy(this.nucleusEmissive);
  this.halo.lookAt(this.camera.position);
  }
 
- // fragments — orbit + rotate
+ // fragments — каждая модель по своей наклонённой shell-орбите.
+ // позиция детерминированная: радиус shell фиксирован → траектории
+ // не пересекаются ни с соседями по shell, ни с моделями других shells.
  if (this.fragments) {
- this.fragments.rotation.y = this.time * 0.05;
+ const _v = this._fragVec || (this._fragVec = new THREE.Vector3());
+ const _e = this._fragEuler || (this._fragEuler = new THREE.Euler());
  this.fragments.children.forEach((m, i) => {
  const u = m.userData;
- m.position.y = u.baseY + Math.sin(this.time * u.speed + u.phase) * 0.3;
+ const t = this.time * u.speed + u.phase;
+ // позиция в плоскости орбиты (круг радиуса shellR + мягкий вертик. wobble)
+ _v.set(Math.cos(t) * u.shellR, Math.sin(t * 1.7 + u.phase) * u.wobble, Math.sin(t) * u.shellR);
+ // наклон орбитальной плоскости — задаёт уникальный «коридор» движения
+ _e.set(u.tiltX, 0, u.tiltZ);
+ _v.applyEuler(_e);
+ m.position.copy(_v);
  m.rotation.x += u.rotSpeed.x * dt;
  m.rotation.y += u.rotSpeed.y * dt;
  m.rotation.z += u.rotSpeed.z * dt;
- // only non-branded fragments follow the palette swap;
- // TG-branded icons (plane, star, check) keep their identity colors
  if (!u.branded) {
  const c = i % 2 === 0 ? this.colorA : this.colorB;
  m.material.color.lerp(c, 0.02);
