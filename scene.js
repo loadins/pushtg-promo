@@ -159,8 +159,21 @@ class Scene {
  this.bloomStrength = 0.43;
  this.bloomTarget = 0.43;
 
+  this.atomCenter = new THREE.Vector3(this.getAtomX(), -0.15, 0);
+
  this.clock = new THREE.Clock();
  this.init();
+ }
+
+ getAtomX() {
+ return window.innerWidth < 760 ? 0.45 : 1.35;
+ }
+
+ updateAtomCenter() {
+ this.atomCenter.set(this.getAtomX(), -0.15, 0);
+ if (this.atom) this.atom.position.copy(this.atomCenter);
+ if (this.fragments) this.fragments.position.copy(this.atomCenter);
+ if (this.halo) this.halo.position.set(this.atomCenter.x, this.atomCenter.y, -2.5);
  }
 
  init() {
@@ -238,10 +251,10 @@ class Scene {
  this.scene.add(pt2);
  }
 
- // main object — atom (nucleus + 3 elliptical electron orbits)
+ // main object — atom (nucleus + 3 elliptical message orbits)
  buildBlob() {
  this.atom = new THREE.Group();
- this.atom.position.set(0.6, -0.15, 0);
+ this.atom.position.copy(this.atomCenter);
 
  // ── nucleus: glowing core sphere — отбелённый жёлтый (кремово-золотой)
  // выбран hex с явной жёлтой компонентой, чтобы palette-detection
@@ -274,7 +287,7 @@ class Scene {
  this.blobWire = new THREE.Mesh(wireGeo, wireMat);
  this.atom.add(this.blobWire);
 
- // ── electron orbits: 3 ellipse rings at different angles
+ // ── message orbits: sent Telegram-like messages flying around the nucleus
  this.orbits = [];
  this.electrons = [];
  const orbitConfigs = [
@@ -303,15 +316,27 @@ class Scene {
  this.atom.add(ring);
  this.orbits.push(ring);
 
- // electron — small glowing sphere following the ellipse
- const eGeo = new THREE.SphereGeometry(0.09, 16, 16);
+ // message — small glowing paper plane / bubble following the ellipse
+ const msgShape = i % 2 === 0 ? this.makePaperPlaneShape() : this.makeChatBubbleShape();
+ const eGeo = new THREE.ExtrudeGeometry(msgShape, {
+ depth: 0.035,
+ bevelEnabled: true,
+ bevelThickness: 0.01,
+ bevelSize: 0.01,
+ bevelSegments: 1,
+ curveSegments: 8,
+ });
+ eGeo.center();
  const eMat = new THREE.MeshStandardMaterial({
- color: 0xffffff,
- emissive: 0x4F7AFF,
- emissiveIntensity: 1.2,
+ color: 0xEAFBFF,
+ emissive: 0x2AABEE,
+ emissiveIntensity: 1.4,
+ metalness: 0.25,
+ roughness: 0.28,
  });
  const electron = new THREE.Mesh(eGeo, eMat);
- electron.userData = { ...cfg, phase: i * 1.5 };
+ electron.scale.setScalar(0.28);
+ electron.userData = { ...cfg, phase: i * 1.5, isMessage: true };
  this.atom.add(electron);
  this.electrons.push(electron);
  });
@@ -392,6 +417,7 @@ class Scene {
  // не пересекаются между собой (детерминированно, без коллизий).
  buildFragments() {
  this.fragments = new THREE.Group();
+ this.fragments.position.copy(this.atomCenter);
 
  // build geometries once
  const extrudeOpts = { depth: 0.08, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 2, curveSegments: 12 };
@@ -653,7 +679,7 @@ class Scene {
  `,
  });
  this.halo = new THREE.Mesh(geo, mat);
- this.halo.position.set(0.6, -0.15, -2.5);
+ this.halo.position.set(this.atomCenter.x, this.atomCenter.y, -2.5);
  this.scene.add(this.halo);
  }
 
@@ -696,6 +722,7 @@ class Scene {
  this.renderer.setSize(w, h, false);
  if (this.composer) this.composer.setSize(w, h);
  if (this.bloom) this.bloom.setSize(w, h);
+ this.updateAtomCenter();
  }
 
  setScroll(progress, scrollY) {
@@ -815,7 +842,7 @@ class Scene {
  }
  }
 
- // electrons travelling along their elliptical orbits
+ // orbiting messages travelling along their elliptical paths
  if (this.electrons) {
  this.electrons.forEach((e, i) => {
  const u = e.userData;
@@ -827,7 +854,9 @@ class Scene {
  const v = new THREE.Vector3(lx, ly, 0);
  v.applyEuler(new THREE.Euler(u.rotX, u.rotY, u.rotZ));
  e.position.copy(v);
- // tint electron with current accent
+ e.lookAt(this.camera.position);
+ e.rotation.z += Math.sin(t) * 0.18;
+ // tint orbiting messages with current accent
  if (e.material) e.material.emissive.lerp(this.colorA, 0.04);
  });
  // tint orbit rings

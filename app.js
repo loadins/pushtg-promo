@@ -244,31 +244,26 @@
       title: 'Ручной охват',
       body:  'Менеджер вручную ищет группы, копирует юзернеймы, пишет каждому. Часы рутины в день до первого сообщения.',
       stats: [['~4 ч', 'рутины в день'], ['~50', 'лидов в день']],
-      code:  'err.manual',
     },
     {
       title: 'Языковой барьер',
       body:  'Шаблон на русском уходит в Индию, Пакистан, Бангладеш. Ответов нет — менеджер не говорит на языке лида.',
       stats: [['~2%', 'response rate'], ['0', 'диалогов на хинди']],
-      code:  'err.language',
     },
     {
       title: 'Молчание лида',
       body:  'Лид прочитал и ушёл. Менеджер забыл вернуться. Через неделю контакт потерян навсегда.',
       stats: [['до 80%', 'лидов теряется'], ['0', 'follow-up']],
-      code:  'err.followup',
     },
     {
       title: 'Бан аккаунта',
       body:  '50 сообщений с одного IP — Telegram даёт rest. После двух рестов — постоянный бан.',
       stats: [['~50', 'сообщений до rest'], ['1 IP', 'под риском']],
-      code:  'err.banned',
     },
     {
       title: 'Нет аналитики',
       body:  'Не видно, где лид застрял. Что работает — непонятно. Рост невозможен.',
       stats: [['0', 'видимости'], ['—', 'A/B-тестов']],
-      code:  'err.blindspot',
     },
   ];
 
@@ -277,7 +272,6 @@
   const painStats = $('#painStats');
   const painStepNum = $('#painStepNum');
   const painProgress = $('#painProgress');
-  const painMarkerCode = $('#painMarkerCode');
 
   let lastPainStep = -1;
   function updatePainPin() {
@@ -303,7 +297,6 @@
           ([v, l]) => `<div class="ps-item"><span class="ps-val">${v}</span><span class="ps-lbl">${l}</span></div>`
         ).join('');
         painStepNum.textContent = stepIdx + 1;
-        painMarkerCode.textContent = s.code;
         [painTitle, painBody, painStats].forEach((el) => { el.style.opacity = ''; });
       }, 220);
     }
